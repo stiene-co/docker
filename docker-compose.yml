@@ -1,0 +1,79 @@
+version: "3.1"
+
+networks:
+  sc-network:
+    ipam:
+      config:
+        - subnet: 10.0.0.0/16
+
+services:
+
+    webserver:
+      build: nginx
+      container_name: sc-web
+      working_dir: /srv
+      volumes:
+          - /srv/stiene:/srv
+          - ./nginx/conf/nginx.conf:/etc/nginx/conf.d/default.conf
+      extra_hosts:
+        - "mariadb:10.0.2.20"
+        - "php:10.0.1.10" 
+      networks:
+        sc-network:
+          ipv4_address: 10.0.0.5
+      restart: always
+       
+    php:
+      build: php
+      container_name: sc-php
+      working_dir: /srv
+      volumes:
+        - /srv/stiene:/srv
+        - ./php/conf/99-overrides.ini:/etc/php/7.4/fpm/conf.d/99-overrides.ini
+      extra_hosts:
+        - "mariadb:10.0.2.20"
+      networks:
+        sc-network:
+          ipv4_address: 10.0.1.10
+      restart: always
+
+    mariadb:
+      build: mariadb
+      container_name: sc-mariadb
+      working_dir: /srv
+      volumes:
+        - /srv/stiene:/srv
+      environment:
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      networks:
+        sc-network:
+          ipv4_address: 10.0.2.20
+      restart: always
+
+    phpmyadmin:
+      image: phpmyadmin:5.0
+      container_name: sc-phpmyadmin
+      environment:
+        PMA_HOST: mariadb
+        PMA_PORT: 3306
+      restart: always 
+      extra_hosts:
+        - "mariadb:10.0.2.20"
+      networks:
+        sc-network:
+          ipv4_address: 10.0.2.25
+
+    memcached:
+      image: memcached:1.6
+      container_name: sc-memcached
+      networks:
+        - sc-network
+
+    redis:
+      image: redis:6
+      container_name: sc-redis
+      networks:
+        - sc-network
